@@ -131,7 +131,7 @@ FROM (VALUES (100), (200), (300)) AS t(days);
 CREATE OR REPLACE FUNCTION py_day_name_on(num_of_days INT)
 RETURNS STRING
 LANGUAGE PYTHON
-RUNTIME_VERSION = '3.8'
+RUNTIME_VERSION = '3.11'
 HANDLER = 'calculate_day_name'
 AS
 $$

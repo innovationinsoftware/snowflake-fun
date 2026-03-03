@@ -5,6 +5,8 @@
 3) Advanced SQL Puzzles
 ----------------------------------------------------------------------------------*/
 
+use schema demo_db.scott;
+
 -- Step 1 – Get the top 1 row: traditional approaches
 
 -- 1. Using TOP option

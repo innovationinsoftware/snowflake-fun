@@ -14,6 +14,10 @@ USE ROLE sysadmin;
 
 CREATE DATABASE citibike;
 
+
+USE DATABASE citibike;
+USE SCHEMA public;
+
 CREATE OR REPLACE TABLE trips
 (
     tripduration              INTEGER,
@@ -35,13 +39,9 @@ CREATE OR REPLACE TABLE trips
 );
 
 
-USE DATABASE citibike;
-USE SCHEMA public;
 
 
 -- Step 2 – Create External Stage
-
---CREATE STAGE citibike_trips URL = 's3://snowflake-workshop-lab/citibike-trips';
 
 CREATE OR REPLACE STAGE citibike_trips URL = 's3://snowflake-workshop-lab/japan/citibike-trips';
 
@@ -68,9 +68,6 @@ CREATE OR REPLACE FILE FORMAT csv
 
 -- Step 4 – Data Load
 
-USE DATABASE citibike;
-USE SCHEMA public;
-
 -- 1. This will not work since there are JSON files mingled in with the CSV now in the stage
 COPY INTO trips
 FROM @citibike_trips
@@ -85,7 +82,6 @@ PATTERN    = '.*[.]csv.gz';
 
 SET id = (SELECT LAST_QUERY_ID());
 
-SELECT * FROM TABLE(VALIDATE(trips, JOB_ID => $id));
 
 CREATE TABLE trips_load_errors AS
 SELECT * FROM TABLE(VALIDATE(trips, JOB_ID => $id));
@@ -98,14 +94,13 @@ SELECT *
 FROM trips
 LIMIT 10;
 
--- 3. Reload after truncate
+-- 3. The files will not be loaded twice unless the table is truncated
 COPY INTO trips
 FROM @citibike_trips
 FILE_FORMAT = csv
 ON_ERROR   = CONTINUE
 PATTERN    = '.*[.]csv.gz';
 
-TRUNCATE TABLE trips;
 
 -- 4. Updated file format with NULL_IF — this attribute resolved empty-field issues
 CREATE OR REPLACE FILE FORMAT csv
@@ -116,6 +111,8 @@ CREATE OR REPLACE FILE FORMAT csv
     EMPTY_FIELD_AS_NULL           = TRUE
     SKIP_HEADER                   = 1
     NULL_IF                       = (''); -- THIS ATTRIBUTE MADE THE DIFFERENCE!
+
+TRUNCATE TABLE trips; -- that also truncates the file load history
 
 COPY INTO trips
 FROM @citibike_trips

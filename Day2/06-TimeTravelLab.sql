@@ -20,7 +20,7 @@ USE SCHEMA demo_schema;
 
 SHOW TABLES;
 
-CREATE OR REPLACE TABLE dept_copy CLONE demo_db_clone.scott.dept;
+CREATE OR REPLACE TABLE dept_copy CLONE demo_db.scott.dept;
 
 
 -- Step 2 – Review and Adjust Retention Time Settings
@@ -89,16 +89,17 @@ SELECT * FROM dept_copy;
 
 -- The AT keyword allows you to capture historical data inclusive of all changes
 -- made by a statement or transaction up until that point.
+
 TRUNCATE TABLE dept_copy;
 
 SET trunc_qid = (SELECT LAST_QUERY_ID());
 
 SELECT * FROM dept_copy;
 
--- 1. Select table as it was 3 minutes ago, expressed in seconds offset
+-- 1. Select table as it was 1 minute ago, expressed in seconds offset
 SELECT *
 FROM dept_copy
-AT(OFFSET => -60*3);
+AT(OFFSET => -60*1);
 
 -- 2. Select rows from the point in time when records were truncated
 SELECT *
