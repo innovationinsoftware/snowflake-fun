@@ -1,4 +1,4 @@
-/*----------------Snowflake Fundamentals 3-day class Lab:---------------------------
+/*----------------Snowflake Fundamentals 4-day class Lab:---------------------------
 -- Copyright © 2026 Innovation In Software Corporation. All rights reserved.
 1) Stage types
 2) Listing staged data files
