@@ -1,62 +1,89 @@
 /*----------------Snowflake Fundamentals 4-day class Lab:---------------------------
 -- Copyright © 2026 Innovation In Software Corporation. All rights reserved.
-1) Analytic Functions
-2) QUALIFY clause
-3) Advanced SQL Puzzles
+1) ROW_NUMBER, RANK, DENSE_RANK analytic functions
+2) QUALIFY clause — inline filtering on analytic function results
+3) MIN/MAX as analytic functions with PARTITION BY
+4) Multiple analytic functions in a single query
+5) Advanced QUALIFY challenges — presidents, top-paid clerks, department averages
+6) Row-value subquery comparisons
 ----------------------------------------------------------------------------------*/
 
-use schema demo_db.scott;
+/*
+================================================================================
+  PART 1 – INSTRUCTOR DEMO
+  Each numbered demo illustrates one concept.  Students follow along in their
+  own worksheets and are not expected to type anything until Part 2.
+================================================================================
+*/
 
--- Step 1 – Get the top 1 row: traditional approaches
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 1 │ Context and Approaches to "Top N per Group"
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- Four progressively cleaner approaches retrieve the single earliest-hired
+-- employee. The sequence shows that QUALIFY eliminates the need for a CTE
+-- wrapper and is unique to Snowflake (and a few other modern SQL engines).
+-- Discussion point: "Which approach is most readable for a new team member?"
+-- (Answer: subjective, but QUALIFY inline is the most concise.)
 
--- 1. Using TOP option
+USE SCHEMA demo_db.scott;
+
+-- 1a. TOP option (Snowflake extension)
 SELECT TOP 1 *
 FROM emp
 ORDER BY hiredate;
 
--- 2. Using LIMIT clause
+-- 1b. LIMIT clause (ANSI standard)
 SELECT *
 FROM emp
 ORDER BY hiredate
 LIMIT 1;
 
--- 3. Using CTE with ROW_NUMBER
+-- 1c. CTE with ROW_NUMBER
 WITH x AS (
-    SELECT *, ROW_NUMBER() OVER(ORDER BY hiredate) rn
+    SELECT
+        *,
+        ROW_NUMBER() OVER(ORDER BY hiredate) AS rn
     FROM emp
 )
 SELECT *
 FROM x
 WHERE rn = 1;
 
--- 4. Using ROW_NUMBER with QUALIFY
-SELECT *, ROW_NUMBER() OVER(ORDER BY hiredate) rn
+-- 1d. ROW_NUMBER with QUALIFY
+SELECT
+    *,
+    ROW_NUMBER() OVER(ORDER BY hiredate) AS rn
 FROM emp
 QUALIFY rn = 1;
 
--- 5. Inline QUALIFY
+-- 1e. Inline QUALIFY — most concise form
 SELECT *
 FROM emp
 QUALIFY ROW_NUMBER() OVER(ORDER BY hiredate) = 1;
 
 
--- Step 2 – Challenge #1: Identify all employees hired first (or tied for first) in each department
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 2 │ First Hire per Department — CTE vs Analytic
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- Two strategies for a "first per group" problem:
+--   Strategy 1 uses a GROUP BY CTE + JOIN — two passes over the table.
+--   Strategy 3 uses MIN() as an analytic function + QUALIFY — single pass.
+-- The analytic approach is typically more efficient on large datasets.
 
--- Strategy #1: Using CTE
-
--- 1. Find MIN hiredate in each department
+-- 2a. CTE strategy: find MIN hiredate per department, then join back
 SELECT
     deptno,
-    MIN(hiredate) first_hiredate
+    MIN(hiredate) AS first_hiredate
 FROM emp
 GROUP BY deptno
 ORDER BY 1;
 
--- 2. Find employees hired on those specific dates
 WITH x AS (
     SELECT
         deptno,
-        MIN(hiredate) first_hiredate
+        MIN(hiredate) AS first_hiredate
     FROM emp
     GROUP BY deptno
 )
@@ -65,113 +92,8 @@ FROM emp e
 JOIN x ON e.deptno = x.deptno AND e.hiredate = x.first_hiredate
 ORDER BY e.deptno;
 
-
--- Step 3 – Challenge #2: Identify all employees hired first or last in each department
-
--- Strategy #1: Using CTE with IN clause
-WITH x AS (
-    SELECT
-        deptno,
-        MIN(hiredate) first_hiredate,
-        MAX(hiredate) last_hiredate
-    FROM emp
-    GROUP BY deptno
-)
-SELECT e.*
-FROM emp e
-JOIN x ON e.deptno = x.deptno AND (e.hiredate = x.first_hiredate OR e.hiredate = x.last_hiredate)
-ORDER BY e.deptno, e.hiredate;
-
--- Alternative syntax
-WITH x AS (
-    SELECT
-        deptno,
-        MIN(hiredate) first_hiredate,
-        MAX(hiredate) last_hiredate
-    FROM emp
-    GROUP BY deptno
-)
-SELECT e.*
-FROM emp e
-JOIN x ON e.deptno = x.deptno AND e.hiredate IN (x.first_hiredate, x.last_hiredate)
-ORDER BY e.deptno, e.hiredate;
-
--- Strategy #2: Using CTE and UNION ALL
-WITH x AS (
-    SELECT
-        deptno,
-        MIN(hiredate) first_hiredate,
-        MAX(hiredate) last_hiredate
-    FROM emp
-    GROUP BY deptno
-)
-SELECT e.*
-FROM emp e
-JOIN x ON e.deptno = x.deptno AND e.hiredate = x.first_hiredate
-UNION ALL
-SELECT e.*
-FROM emp e
-JOIN x ON e.deptno = x.deptno AND e.hiredate = x.last_hiredate
-ORDER BY deptno, hiredate;
-
--- Strategy #3: Using MIN/MAX Analytic functions
-
--- 1. Show first and last department hire dates next to each employee's data
-SELECT
-    empno,
-    ename,
-    job,
-    hiredate,
-    deptno,
-    MIN(hiredate) OVER(PARTITION BY deptno) first_date,
-    MAX(hiredate) OVER(PARTITION BY deptno) last_date
-FROM emp
-ORDER BY deptno;
-
--- 2. Apply filter on hiredate column
-WITH x AS (
-    SELECT
-        empno,
-        ename,
-        job,
-        hiredate,
-        deptno,
-        MIN(hiredate) OVER(PARTITION BY deptno) first_date,
-        MAX(hiredate) OVER(PARTITION BY deptno) last_date
-    FROM emp
-)
-SELECT
-    empno,
-    ename,
-    job,
-    hiredate,
-    deptno,
-    first_date first_hiredate,
-    last_date  last_hiredate
-FROM x
-WHERE hiredate IN (first_date, last_date)
-ORDER BY deptno, hiredate;
-
--- Strategy #4: Using MIN/MAX Analytic functions and QUALIFY clause
-SELECT
-    empno,
-    ename,
-    job,
-    hiredate,
-    deptno,
-    MIN(hiredate) OVER(PARTITION BY deptno) first_hiredate,
-    MAX(hiredate) OVER(PARTITION BY deptno) last_hiredate
-FROM emp
-QUALIFY hiredate IN (first_hiredate, last_hiredate)
-ORDER BY deptno, hiredate;
-
--- Improved query
-SELECT
-    empno,
-    ename,
-    job,
-    hiredate,
-    deptno
+-- 2b. Analytic strategy: MIN() OVER(PARTITION BY) + QUALIFY — single scan
+SELECT *
 FROM emp
 QUALIFY hiredate IN (
     MIN(hiredate) OVER(PARTITION BY deptno),
@@ -180,28 +102,14 @@ QUALIFY hiredate IN (
 ORDER BY deptno, hiredate;
 
 
--- Step 4 – Simulating duplicates
-
-INSERT INTO scott.emp VALUES
-(7782,'WILSON','MANAGER',7839,TO_DATE('09-06-1981','dd-mm-yyyy'),2450,NULL,10),
-(7783,'POOJA', 'MANAGER',7839,TO_DATE('09-06-1981','dd-mm-yyyy'),2450,NULL,10);
-
--- Strategy #5: Using ROW_NUMBER function
-SELECT
-    empno,
-    ename,
-    job,
-    hiredate,
-    deptno
-FROM emp
-QUALIFY ROW_NUMBER() OVER(PARTITION BY deptno ORDER BY hiredate, empno ASC) = 1
-ORDER BY deptno;
-
-DELETE FROM scott.emp
-WHERE ename IN ('WILSON','POOJA');
-
-
--- Step 5 – Demonstration: Using multiple analytic functions in the same query
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 3 │ Multiple Analytic Functions in One Query
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- A single SELECT can contain multiple OVER() clauses with different
+-- PARTITION BY and ORDER BY expressions simultaneously.
+-- Each analytic function is evaluated independently against the full result set
+-- before any QUALIFY or ORDER BY is applied — there is no inter-dependency.
 
 SELECT
     empno,
@@ -210,136 +118,108 @@ SELECT
     hiredate,
     deptno,
     sal,
-    --MIN(hiredate) OVER(PARTITION BY deptno) first_date,
-    --ROW_NUMBER() OVER(PARTITION BY deptno ORDER BY hiredate) rn,
-    --RANK() OVER(PARTITION BY deptno ORDER BY hiredate) rk,
-    --MIN(hiredate) OVER(PARTITION BY job) first_date_job,
-    --ROW_NUMBER() OVER(PARTITION BY job ORDER BY hiredate) rn_job,
-    --RANK() OVER(PARTITION BY job ORDER BY hiredate) rk_job,
-    MIN(sal) OVER(PARTITION BY job)        min_sal_job,
-    ROW_NUMBER() OVER(PARTITION BY job ORDER BY sal) rn_job_sal,
-    RANK() OVER(ORDER BY sal)              rk_job,
-    DENSE_RANK() OVER(ORDER BY sal)        drk_job,
-    COUNT(*) OVER(PARTITION BY deptno)     dept_count,
-    COUNT(*) OVER()                        total_count
+    MIN(sal)    OVER(PARTITION BY job)               AS min_sal_job,
+    ROW_NUMBER() OVER(PARTITION BY job ORDER BY sal) AS rn_job_sal,
+    RANK()      OVER(ORDER BY sal)                   AS rk_sal,
+    DENSE_RANK() OVER(ORDER BY sal)                  AS drk_sal,
+    COUNT(*)    OVER(PARTITION BY deptno)            AS dept_count,
+    COUNT(*)    OVER()                               AS total_count
 FROM emp
 ORDER BY sal;
 
 
--- Step 6 – Advanced Challenges
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 4 │ Advanced QUALIFY Challenges
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- The four challenges show QUALIFY handling progressively harder business
+-- problems that would require correlated subqueries in traditional SQL.
+-- Each builds on the previous — position QUALIFY as "WHERE for window functions".
 
--- Challenge #3: Employees in the Same Department as the President(s)
-
-/*
-    Objective:
-        Write a query to find all employees who work in the same department(s) as the president(s).
-
-    Requirements:
-        Your query must work even if there are multiple "PRESIDENT" records in the emp table.
-        Ensure that Snowflake scans the emp table only once for efficiency.
-*/
-
--- 1. Show president count per department alongside all employees
-SELECT
-    *,
-    COUNT(CASE WHEN job = 'PRESIDENT' THEN 1 END) OVER(PARTITION BY deptno) num_of_presidents
-FROM emp
-ORDER BY deptno;
-
--- 2. Filter to only departments that have at least one president (QUALIFY)
+-- 4a. Challenge: employees in the same department as the president
 SELECT *
 FROM emp
 QUALIFY COUNT(CASE WHEN job = 'PRESIDENT' THEN 1 END) OVER(PARTITION BY deptno) > 0
 ORDER BY deptno;
 
--- 3. Alternative using SUM
-SELECT *
-FROM emp
-QUALIFY SUM(CASE WHEN job = 'PRESIDENT' THEN 1 END) OVER(PARTITION BY deptno) > 0
-ORDER BY deptno;
-
--- 4. Correlated subquery approach
-SELECT *
-FROM emp a
-WHERE 0 < (
-    SELECT COUNT(*)
-    FROM emp
-    WHERE job = 'PRESIDENT'
-    AND deptno = a.deptno
-);
-
-
--- Challenge #4: Employees in the Department of the Top-Paid Clerk
-
-/*
-    Objective:
-        Write a query to find all employees who work in the same department as the highest-paid "CLERK."
-
-    Requirements:
-        Ensure your query handles ties (i.e., if there are multiple top-paid clerks in different departments).
-*/
-
+-- 4b. Challenge: employees in the department of the top-paid clerk
 SELECT *
 FROM emp a
 QUALIFY MAX(CASE WHEN job = 'CLERK' THEN sal END) OVER(PARTITION BY deptno) =
         MAX(CASE WHEN job = 'CLERK' THEN sal END) OVER()
 ORDER BY deptno;
 
-
--- Challenge #5: Employees Paid Above the Department Average
-
-/*
-    Objective:
-        Write a query to find all employees whose salary is above the average salary
-        of their respective department.
-*/
-
--- 1. Correlated subquery
+-- 4c. Challenge: employees paid above their department average
 SELECT *
-FROM emp e
-WHERE sal > (
-    SELECT AVG(sal)
-    FROM emp
-    WHERE deptno = e.deptno
-)
-ORDER BY deptno;
-
--- 2. Analytic function with QUALIFY
-SELECT * --, AVG(sal) OVER(PARTITION BY deptno) avg_sal
 FROM emp e
 QUALIFY sal > AVG(sal) OVER(PARTITION BY deptno)
-ORDER BY deptno, AVG(sal) OVER(PARTITION BY deptno);
+ORDER BY deptno;
 
-
--- Challenge #6: Employees with the Same Department and Job Title as ADAMS
-
-/*
-    Objective:
-        Write a query to list all employees who work in the same department and hold
-        the same job title as the employee named "ADAMS."
-*/
-
--- 1. Using subquery with row-value comparison
-SELECT *
-FROM emp
-WHERE (deptno, job) IN (
-    SELECT deptno, job
-    FROM emp
-    WHERE ename = 'ADAMS'
-);
-
--- 2. Using CTE with JOIN
-WITH x AS (
-    SELECT deptno, job
-    FROM emp
-    WHERE ename = 'ADAMS'
-)
-SELECT *
-FROM emp
-JOIN x ON emp.deptno = x.deptno AND emp.job = x.job;
-
--- 3. Using QUALIFY
+-- 4d. Challenge: employees with the same department and job as ADAMS
 SELECT *
 FROM emp
 QUALIFY COUNT(CASE ename WHEN 'ADAMS' THEN 1 END) OVER(PARTITION BY deptno, job) > 0
 ORDER BY deptno, job;
+
+
+/*
+================================================================================
+  PART 2 – STUDENT EXERCISES
+  Complete each exercise independently.  Run your query and verify the result.
+  All exercises are READ-ONLY — no CREATE, INSERT, UPDATE, or DROP required.
+================================================================================
+*/
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- EXERCISE 1 │ QUALIFY with ROW_NUMBER
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Task: Using the emp table in demo_db.scott, write a single SELECT (no CTE)
+--       that returns the highest-paid employee in each department.
+--       Use ROW_NUMBER() OVER(PARTITION BY deptno ORDER BY sal DESC) and
+--       filter with QUALIFY.
+--       Return: empno, ename, job, sal, deptno.
+
+USE SCHEMA demo_db.scott;
+
+
+-- YOUR CODE HERE
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- EXERCISE 2 │ Analytic Aggregates
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Task: Write a query that returns all employees with these additional columns:
+--         dept_avg_sal   — average salary for the employee's department
+--         dept_max_sal   — maximum salary for the employee's department
+--         pct_of_max     — employee's salary as a percentage of the dept max,
+--                          rounded to 1 decimal place
+--       Order by deptno, sal DESC.
+
+
+-- YOUR CODE HERE
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- EXERCISE 3 │ QUALIFY with Conditional Aggregates
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Task: Write a single query (no subquery, no CTE) that returns all employees
+--       who work in the same department as the employee named 'KING'.
+--       Use QUALIFY with a COUNT(CASE ... END) OVER(PARTITION BY deptno) pattern.
+
+
+-- YOUR CODE HERE
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- EXERCISE 4 │ CHALLENGE — Duplicate Detection with ROW_NUMBER
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Task: The table contains employees with the same job in the same department.
+--       Write a query that returns only ONE employee per (deptno, job) combination
+--       — keep the one with the lowest empno (use ORDER BY empno ASC).
+--       Use ROW_NUMBER() OVER(PARTITION BY deptno, job ORDER BY empno) with
+--       QUALIFY to filter to rn = 1.
+--       Return: empno, ename, job, deptno, sal.
+--       Hint: this is the deduplication pattern used in production pipelines.
+
+
+-- YOUR CODE HERE

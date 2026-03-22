@@ -1,2 +1,2 @@
-_username = '<your user name>'
-_pwd = '<your password>'
+_username = 'scott202603'
+_pwd = 'M@ndrus2026!03'

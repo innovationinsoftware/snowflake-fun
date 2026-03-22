@@ -1,17 +1,37 @@
 /*----------------Snowflake Fundamentals 4-day class Lab:---------------------------
 -- Copyright © 2026 Innovation In Software Corporation. All rights reserved.
-1) AI_SENTIMENT function
-2) AI_CLASSIFY function
-3) AI_COMPLETE function
-4) Chaining AI functions
-5) Advanced prompting
+1) AI_SENTIMENT — sentiment analysis on unstructured text
+2) AI_CLASSIFY — zero-shot text classification with custom categories
+3) AI_COMPLETE — generative summarisation with LLM models
+4) Chaining AI functions in a single SELECT statement
+5) Aggregate analysis using AI functions with GROUP BY
 ----------------------------------------------------------------------------------*/
 
--- Step 0 – Setup
+/*
+================================================================================
+  PART 1 – INSTRUCTOR DEMO
+  Each numbered demo illustrates one concept.  Students follow along in their
+  own worksheets and are not expected to type anything until Part 2.
+================================================================================
+*/
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 1 │ Context Setup and Sample Data
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- Cortex AI functions run inside Snowflake — the data never leaves the platform.
+-- All three functions (AI_SENTIMENT, AI_CLASSIFY, AI_COMPLETE) are scalar SQL
+-- functions callable in any SELECT, WHERE, or GROUP BY clause.
+-- The product_reviews table contains five realistic reviews that deliberately
+-- span multiple sentiment categories to demonstrate meaningful classification.
+
+USE ROLE accountadmin;
+GRANT ALL ON DATABASE demo_db TO ROLE sysadmin;
+GRANT ALL ON SCHEMA demo_db.public TO ROLE sysadmin;
 
 USE ROLE sysadmin;
-USE DATABASE <your_db>;
-USE SCHEMA <your_schema>;
+USE DATABASE demo_db;
+USE SCHEMA public;
 
 CREATE OR REPLACE TABLE product_reviews (
     id     INT,
@@ -26,7 +46,15 @@ INSERT INTO product_reviews VALUES
 (5, 'Amazing performance and sleek design. Highly recommended.');
 
 
--- Step 1 – Sentiment Analysis
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 2 │ AI_SENTIMENT — Sentiment Analysis
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- AI_SENTIMENT returns a VARIANT with a categories array. Each element contains
+-- a sentiment label (positive / negative / mixed / neutral) and a confidence score.
+-- The function classifies each row independently — no model training or setup required.
+-- Snowflake runs the LLM inference inside the Snowflake data cloud boundary,
+-- satisfying data residency requirements out of the box.
 
 SELECT
     id,
@@ -34,14 +62,16 @@ SELECT
     AI_SENTIMENT(review) AS sentiment
 FROM product_reviews;
 
-/*
-Positive / Negative / Neutral classification
-Instant AI analysis without moving data
-AI is running where the data lives.
-*/
 
-
--- Step 2 – Business Classification
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 3 │ AI_CLASSIFY — Zero-Shot Text Classification
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- AI_CLASSIFY assigns each input string to one of the provided category labels
+-- without any prior training examples (zero-shot classification).
+-- The category list is defined inline as an array — it can be any set of
+-- business-relevant labels. The function returns a VARIANT with a labels array
+-- ordered by confidence score descending.
 
 SELECT
     id,
@@ -52,60 +82,155 @@ SELECT
     ) AS category
 FROM product_reviews;
 
--- Structured output from unstructured text
--- Business automation potential
 
-
--- Step 3 – Generative Summarization
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 4 │ AI_COMPLETE — Generative Summarisation
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- AI_COMPLETE sends a prompt to a hosted LLM (snowflake-llama-3.3-70b) and
+-- returns the generated text response as a STRING.
+-- The prompt is constructed by concatenating a static instruction with the
+-- review text — the model responds to the combined prompt for each row.
+-- Response length and style vary with prompt wording; shorter prompts
+-- ("in 3 words") produce more constrained output.
 
 SELECT
     id,
-    AI_COMPLETE('Summarize in one short sentence: ' || review) AS summary
+    review,
+    AI_COMPLETE(
+        'snowflake-llama-3.3-70b',
+        'Summarize in one short sentence: ' || review
+    ) AS summary
 FROM product_reviews;
 
 SELECT
     id,
-    AI_COMPLETE('Summarize in 5 words: ' || review) AS ultra_short_summary
+    review,
+    AI_COMPLETE(
+        'snowflake-llama-3.3-70b',
+        'Summarize in 5 words: ' || review
+    ) AS ultra_short_summary
 FROM product_reviews;
 
 
--- Step 4 – Chaining AI Functions
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 5 │ Chaining AI Functions in One Query
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- All three AI functions can appear in the same SELECT — each evaluates
+-- independently per row. This replaces a pipeline that would previously require
+-- three separate API calls, a Python service, and data movement between systems.
+-- The ::string casts extract the top label from each VARIANT result for clean output.
 
 SELECT
     id,
-    AI_SENTIMENT(review) AS sentiment,
+    AI_SENTIMENT(review):categories[0].sentiment::STRING AS sentiment,
     AI_CLASSIFY(
         review,
         ['Shipping', 'Product Quality', 'Customer Support', 'Pricing', 'Packaging']
-    ) AS category,
-    AI_COMPLETE('Summarize in 5 words: ' || review) AS short_summary
-FROM product_reviews;
-
-/*
-Sentiment analysis
-Text classification
-Generative summarization
-All in one SQL query
-No external ML platform
-No Python
-No API calls
-*/
-
-
--- Step 5 – Optional Advanced Prompting
-
-SELECT
-    id,
+    ):labels[0]::STRING                                  AS category,
     AI_COMPLETE(
-        'Extract only the main issue from this review in 3 words: ' || review
-    ) AS main_issue
+        'snowflake-llama-3.3-70b',
+        'Summarize in 4 words: ' || review
+    )::STRING                                            AS short_summary
 FROM product_reviews;
 
 
--- Step 6 – Optional Enhancement: Aggregate sentiment counts
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO 6 │ Aggregate Analysis with AI Functions
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- AI functions work inside aggregate queries exactly like built-in scalar
+-- functions. GROUP BY on the extracted sentiment label produces a summary
+-- count per sentiment category — a common dashboard metric derived entirely
+-- from unstructured text with no pre-processing.
 
 SELECT
-    AI_SENTIMENT(review) AS sentiment,
+    AI_SENTIMENT(review):categories[0].sentiment::STRING AS sentiment,
     COUNT(*) AS total
 FROM product_reviews
-GROUP BY sentiment;
+GROUP BY 1
+ORDER BY total DESC;
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- DEMO CLEANUP
+-- ──────────────────────────────────────────────────────────────────────────────
+-- [INSTRUCTOR NOTE]
+-- demo_db must NOT be dropped — used throughout Day 4.
+-- product_reviews is kept for the student exercises.
+
+
+/*
+================================================================================
+  PART 2 – STUDENT EXERCISES
+  Complete each exercise independently.  Run your query and verify the result.
+  All exercises are READ-ONLY — no CREATE, INSERT, UPDATE, or DROP required.
+================================================================================
+*/
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- EXERCISE 1 │ Sentiment Extraction
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Task: Write a query against product_reviews that extracts the top sentiment
+--       label and its confidence score from AI_SENTIMENT.
+--       Return: id, review, sentiment_label, confidence_score
+--       where:
+--         sentiment_label   = AI_SENTIMENT(review):categories[0].sentiment::STRING
+--         confidence_score  = AI_SENTIMENT(review):categories[0].score::FLOAT
+--       Order by confidence_score DESC.
+
+USE DATABASE demo_db;
+USE SCHEMA public;
+
+
+-- YOUR CODE HERE
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- EXERCISE 2 │ Custom Classification
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Task: Use AI_CLASSIFY to categorise each review into one of these labels:
+--         ['Positive Experience', 'Negative Experience', 'Mixed Experience']
+--       Return: id, review, top_category
+--       where top_category = AI_CLASSIFY(...):labels[0]::STRING
+--       How does the result differ from Demo 3 which used business-domain labels?
+--       Answer in a comment below your query.
+
+-- YOUR CODE HERE
+
+-- Answer:
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- EXERCISE 3 │ Prompt Engineering
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Task: Write two AI_COMPLETE queries against product_reviews:
+--         A) Prompt: 'What is the main complaint in this review? Answer in one
+--            sentence: ' || review
+--            Return id, review, complaint
+--         B) Prompt: 'Translate this customer review to Spanish: ' || review
+--            Return id, translated_review
+--       For reviews with no complaint (positive), what does the model return?
+
+-- Task A – YOUR CODE HERE
+
+
+-- Task B – YOUR CODE HERE
+
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- EXERCISE 4 │ CHALLENGE — Full AI Pipeline in One Query
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Task: Write a single SELECT that produces an executive summary table
+--       with these columns for every row in product_reviews:
+--         id
+--         sentiment      — top sentiment label (::STRING)
+--         category       — top business category from this list:
+--                          ['Shipping','Product Quality','Customer Support',
+--                           'Pricing','Packaging']
+--         action_needed  — AI_COMPLETE result for the prompt:
+--                          'In 6 words, what action should the company take: ' || review
+--       Order by id ASC.
+
+-- YOUR CODE HERE
