@@ -21,7 +21,7 @@
 -- [INSTRUCTOR NOTE]
 -- demo_db.scott is the canonical schema used throughout Day 2 labs.
 -- demo_db.demo_schema is created fresh here for objects owned by this lab.
--- Pre-requisite: SCHEMA-SETUP-SCOTT.sql must have been executed so that
+-- Pre-requisite: SetUp/SCHEMA-SETUP-SCOTT.sql must have been executed so that
 -- demo_db.scott.emp and demo_db.scott.dept exist.
 
 USE ROLE accountadmin;

@@ -1,4 +1,4 @@
-/*----------------Snowflake Fundamentals 4-day class Lab:---------------------------
+/*----------------Snowflake Fundamentals — Cortex Instructor Demo:---------------------------
 -- Copyright © 2026 Innovation In Software Corporation. All rights reserved.
 1) AI_SENTIMENT — sentiment analysis on unstructured text
 2) AI_CLASSIFY — zero-shot text classification with custom categories
@@ -9,9 +9,38 @@
 
 /*
 ================================================================================
-  PART 1 – INSTRUCTOR DEMO
-  Each numbered demo illustrates one concept.  Students follow along in their
-  own worksheets and are not expected to type anything until Part 2.
+  INSTRUCTOR DEMONSTRATION ONLY — NO STUDENT EXECUTION
+  For this class, Cortex AI Functions are unavailable in the students' freely
+  created trial accounts. Students observe and discuss the results.
+  Demonstrate from an authorized Snowflake account with Cortex access, or show
+  screenshots and saved results from actual execution in such an account.
+
+  Suggested delivery: Demos 2–4 are the core presentation (10–15 minutes).
+  Demos 5–6 are optional if time permits. Demo 1 is instructor preparation.
+
+  INSTRUCTOR PREPARATION
+  - Use the five fictional reviews below; do not use corporate/customer data.
+  - Confirm Cortex privileges, warehouse access, and model availability in the
+    demonstration account. Existing SQL uses snowflake-llama-3.3-70b: validate
+    this model in that account and replace all occurrences if needed.
+  - The setup below assumes a dedicated class environment with DEMO_DB.
+    It changes grants and replaces DEMO_DB.PUBLIC.PRODUCT_REVIEWS. For a work
+    account, have its administrator approve/adapt the role and target schema
+    before running setup. Do not run these grants against shared production data.
+  - Execute one demo at a time. Capture SQL, input text, and actual output for
+    Demos 2, 3, and both prompts in Demo 4. Keep optional captures for Demos 5–6.
+  - Save screenshots as 20-Cortex-02-Sentiment.png, 20-Cortex-03-Classify.png,
+    20-Cortex-04a-Summary.png, and 20-Cortex-04b-ShortSummary.png.
+    These are planned filenames; screenshots are not supplied with this script.
+  - Also export/copy the actual results for readable offline display. Record
+    the execution date and model used. Never invent successful output.
+  - Hide account details and unrelated objects before capturing screenshots.
+  - Review model output before teaching; wording and labels can vary by run.
+
+  SCREENSHOT DELIVERY
+  Explain each query, show its captured output, and discuss the observations
+  listed at the end. Identify captures as previously executed results.
+  No student account setup, query execution, or submitted answers are required.
 ================================================================================
 */
 
@@ -19,9 +48,9 @@
 -- DEMO 1 │ Context Setup and Sample Data
 -- ──────────────────────────────────────────────────────────────────────────────
 -- [INSTRUCTOR NOTE]
--- Cortex AI functions run inside Snowflake — the data never leaves the platform.
--- All three functions (AI_SENTIMENT, AI_CLASSIFY, AI_COMPLETE) are scalar SQL
--- functions callable in any SELECT, WHERE, or GROUP BY clause.
+-- These queries invoke Cortex AI functions through Snowflake SQL.
+-- Account, region, model availability, and access policies determine execution.
+-- This demonstration uses scalar AI function calls in SELECT statements.
 -- The product_reviews table contains five realistic reviews that deliberately
 -- span multiple sentiment categories to demonstrate meaningful classification.
 
@@ -50,11 +79,11 @@ INSERT INTO product_reviews VALUES
 -- DEMO 2 │ AI_SENTIMENT — Sentiment Analysis
 -- ──────────────────────────────────────────────────────────────────────────────
 -- [INSTRUCTOR NOTE]
--- AI_SENTIMENT returns a VARIANT with a categories array. Each element contains
--- a sentiment label (positive / negative / mixed / neutral) and a confidence score.
+-- AI_SENTIMENT returns an object with a categories array. Each entry has
+-- a name and sentiment label; the overall category is always present.
+-- The documented result does not include a numeric confidence score.
 -- The function classifies each row independently — no model training or setup required.
--- Snowflake runs the LLM inference inside the Snowflake data cloud boundary,
--- satisfying data residency requirements out of the box.
+-- With no aspect list supplied here, inspect the overall sentiment result.
 
 SELECT
     id,
@@ -70,8 +99,9 @@ FROM product_reviews;
 -- AI_CLASSIFY assigns each input string to one of the provided category labels
 -- without any prior training examples (zero-shot classification).
 -- The category list is defined inline as an array — it can be any set of
--- business-relevant labels. The function returns a VARIANT with a labels array
--- ordered by confidence score descending.
+-- business-relevant labels. The result has a labels array. In the default
+-- single-label mode used here, that array contains one selected category.
+-- Do not describe the array as a confidence ranking.
 
 SELECT
     id,
@@ -117,10 +147,9 @@ FROM product_reviews;
 -- DEMO 5 │ Chaining AI Functions in One Query
 -- ──────────────────────────────────────────────────────────────────────────────
 -- [INSTRUCTOR NOTE]
--- All three AI functions can appear in the same SELECT — each evaluates
--- independently per row. This replaces a pipeline that would previously require
--- three separate API calls, a Python service, and data movement between systems.
--- The ::string casts extract the top label from each VARIANT result for clean output.
+-- All three functions appear in the same SELECT as separate expressions.
+-- These calls do not pass their outputs into one another.
+-- The casts extract the overall sentiment and selected classification label.
 
 SELECT
     id,
@@ -154,83 +183,23 @@ ORDER BY total DESC;
 
 
 -- ──────────────────────────────────────────────────────────────────────────────
--- DEMO CLEANUP
--- ──────────────────────────────────────────────────────────────────────────────
--- [INSTRUCTOR NOTE]
--- demo_db must NOT be dropped — used throughout Day 4.
--- product_reviews is kept for the student exercises.
-
+-- OPTIONAL CLEANUP
+-- Save screenshots/results before cleanup. Do not drop DEMO_DB; other labs use it.
+-- Run only if this demonstration created the table and it is no longer needed:
+-- DROP TABLE IF EXISTS demo_db.public.product_reviews;
 
 /*
-================================================================================
-  PART 2 – STUDENT EXERCISES
-  Complete each exercise independently.  Run your query and verify the result.
-  All exercises are READ-ONLY — no CREATE, INSERT, UPDATE, or DROP required.
-================================================================================
+DISCUSSION — NO SQL EXECUTION REQUIRED
+1. Why can a review praising the product still have mixed overall sentiment?
+2. Which single category best describes a review mentioning several topics?
+3. How does the five-word summary compare with the one-sentence summary?
+4. Which AI-generated result would you want a person to review before acting?
+
+There is no student exercise or answer-submission section for this demonstration.
+No answer script is needed for this demonstration.
+
+Function reference:
+https://docs.snowflake.com/en/sql-reference/functions/ai_sentiment
+https://docs.snowflake.com/en/sql-reference/functions/ai_classify
+https://docs.snowflake.com/en/sql-reference/functions/ai_complete
 */
-
--- ──────────────────────────────────────────────────────────────────────────────
--- EXERCISE 1 │ Sentiment Extraction
--- ──────────────────────────────────────────────────────────────────────────────
--- Task: Write a query against product_reviews that extracts the top sentiment
---       label and its confidence score from AI_SENTIMENT.
---       Return: id, review, sentiment_label, confidence_score
---       where:
---         sentiment_label   = AI_SENTIMENT(review):categories[0].sentiment::STRING
---         confidence_score  = AI_SENTIMENT(review):categories[0].score::FLOAT
---       Order by confidence_score DESC.
-
-USE DATABASE demo_db;
-USE SCHEMA public;
-
-
--- YOUR CODE HERE
-
-
--- ──────────────────────────────────────────────────────────────────────────────
--- EXERCISE 2 │ Custom Classification
--- ──────────────────────────────────────────────────────────────────────────────
--- Task: Use AI_CLASSIFY to categorise each review into one of these labels:
---         ['Positive Experience', 'Negative Experience', 'Mixed Experience']
---       Return: id, review, top_category
---       where top_category = AI_CLASSIFY(...):labels[0]::STRING
---       How does the result differ from Demo 3 which used business-domain labels?
---       Answer in a comment below your query.
-
--- YOUR CODE HERE
-
--- Answer:
-
-
--- ──────────────────────────────────────────────────────────────────────────────
--- EXERCISE 3 │ Prompt Engineering
--- ──────────────────────────────────────────────────────────────────────────────
--- Task: Write two AI_COMPLETE queries against product_reviews:
---         A) Prompt: 'What is the main complaint in this review? Answer in one
---            sentence: ' || review
---            Return id, review, complaint
---         B) Prompt: 'Translate this customer review to Spanish: ' || review
---            Return id, translated_review
---       For reviews with no complaint (positive), what does the model return?
-
--- Task A – YOUR CODE HERE
-
-
--- Task B – YOUR CODE HERE
-
-
--- ──────────────────────────────────────────────────────────────────────────────
--- EXERCISE 4 │ CHALLENGE — Full AI Pipeline in One Query
--- ──────────────────────────────────────────────────────────────────────────────
--- Task: Write a single SELECT that produces an executive summary table
---       with these columns for every row in product_reviews:
---         id
---         sentiment      — top sentiment label (::STRING)
---         category       — top business category from this list:
---                          ['Shipping','Product Quality','Customer Support',
---                           'Pricing','Packaging']
---         action_needed  — AI_COMPLETE result for the prompt:
---                          'In 6 words, what action should the company take: ' || review
---       Order by id ASC.
-
--- YOUR CODE HERE

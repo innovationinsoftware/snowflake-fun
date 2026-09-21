@@ -2,7 +2,7 @@
 -- Copyright © 2026 Innovation In Software Corporation. All rights reserved.
 1) Internal stage types — user stage (@~), table stage (@%table), named stage
 2) LIST / LS — inspecting stage contents
-3) PUT command — uploading local files via SnowSQL
+3) PUT command — uploading local files via Snowflake CLI
 4) Querying staged files with positional columns and metadata columns
 5) FILE FORMAT objects for stage queries
 6) PATTERN and PATH filters on staged data
@@ -13,8 +13,32 @@
 ================================================================================
   PART 1 – INSTRUCTOR DEMO
   Each numbered demo illustrates one concept.  Students follow along in their
-  own worksheets and are not expected to type anything until Part 2.
+  own SQL editors and are not expected to type anything until Part 2.
+  Local PUT commands run through Snowflake CLI in a terminal.
 ================================================================================
+*/
+
+/*
+HOW TO RUN THIS LAB
+Prerequisites: Snowflake CLI, the named training connection from setup/lab #12,
+SYSADMIN access (or the instructor-approved equivalent), and warehouse access.
+The training connection should specify the class warehouse, usually COMPUTE_WH.
+Keep a local copy of Day3/movies.csv on the computer where Snowflake CLI runs.
+
+TERMINAL COMMAND (not SQL):
+  snow connection test -c training
+
+Work through one demo at a time. Run ordinary SQL in Snowsight or save the
+selected demo statements to a local .sql file and execute it using:
+  snow sql -c training -f "path/to/selected-demo.sql"
+
+Do not run this entire teaching file in one pass: Demo 6 removes staged files,
+and Part 2 contains exercises to complete. Every separate CLI invocation opens
+a new session. Include the USE ROLE / DATABASE / SCHEMA statements when running
+a selection, or use fully qualified names. The connection supplies the warehouse.
+
+Demo 3 must run on the CLI machine, not in the Snowsight SQL editor. Its quoted
+file URI must point to your own movies.csv; replace the example in all three PUTs.
 */
 
 -- ──────────────────────────────────────────────────────────────────────────────
@@ -65,24 +89,35 @@ LS @movies_stage;
 
 
 -- ──────────────────────────────────────────────────────────────────────────────
--- DEMO 3 │ PUT — Uploading a Local File via SnowSQL
+-- DEMO 3 │ PUT — Uploading a Local File via Snowflake CLI
 -- ──────────────────────────────────────────────────────────────────────────────
 -- [INSTRUCTOR NOTE]
--- PUT uploads a local file to a Snowflake internal stage. It runs exclusively
--- inside SnowSQL (the CLI client) — it cannot be executed from the web UI.
+-- PUT uploads a local file to a Snowflake internal stage. In this lab, execute
+-- it with Snowflake CLI; do not run it in the Snowsight SQL editor.
 -- AUTO_COMPRESS = FALSE preserves the original file without gzip compression,
 -- which makes the uploaded file easier to inspect and query directly.
--- The path must not contain spaces; use the movies.csv provided in the Day3 folder.
+-- Use movies.csv from the local Day3 folder. Spaces ARE supported: enclose the
+-- entire file URI in single quotes and use forward slashes, including on Windows.
+-- Replace the example below in ALL THREE commands with your actual absolute path.
+-- Windows example: 'file://C:/Users/yourname/Snowflake Class/Labs/Day3/movies.csv'
+-- macOS example:   'file:///Users/yourname/Snowflake Class/Labs/Day3/movies.csv'
+-- Linux example:   'file:///home/yourname/Snowflake Class/Labs/Day3/movies.csv'
+-- Do not put %USERPROFILE% or ~ in the SQL URI expecting shell expansion.
+-- Save this demo's USE, PUT, and LS statements to a local file such as 13-put.sql.
+-- Run from the terminal: snow sql -c training -f "path/to/13-put.sql"
+-- Keeping SQL in a file also avoids shell interpretation of SQL special characters.
 
 USE ROLE sysadmin;
 USE DATABASE movies_db;
 USE SCHEMA movies_schema;
 
--- Run these three PUT commands from SnowSQL:
-PUT file://C:\Personal\Training\movies.csv @~             AUTO_COMPRESS = FALSE;
-PUT file://C:\Personal\Training\movies.csv @%movies       AUTO_COMPRESS = FALSE;
-PUT file://C:\Personal\Training\movies.csv @movies_stage  AUTO_COMPRESS = FALSE;
+-- Run these three PUT commands from Snowflake CLI:
+PUT 'file://C:/REPLACE_WITH_YOUR_LABS_FOLDER/Day3/movies.csv' @~             AUTO_COMPRESS = FALSE;
+PUT 'file://C:/REPLACE_WITH_YOUR_LABS_FOLDER/Day3/movies.csv' @%movies       AUTO_COMPRESS = FALSE;
+PUT 'file://C:/REPLACE_WITH_YOUR_LABS_FOLDER/Day3/movies.csv' @movies_stage  AUTO_COMPRESS = FALSE;
 
+-- Expected PUT status: UPLOADED, or SKIPPED if the same file is already staged.
+-- Each following listing should include movies.csv.
 LS @~/movies.csv;
 LS @%movies;
 LS @movies_stage;
@@ -171,6 +206,9 @@ RM @movies_stage;
   Complete each exercise independently.  Run your query and verify the result.
   Exercises create objects in movies_db.movies_schema.
   Clean-up steps are provided at the end.
+  Before starting, rerun Demo 3's uploads and listings using your local path.
+  Demo 6 removed the files; Exercise 2 needs movies.csv in @movies_stage.
+  Keep csv_file_format from Demo 5 so you can compare header handling.
 ================================================================================
 */
 
