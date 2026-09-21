@@ -1,0 +1,16 @@
+-- Snowflake Fundamentals | Lab 12: Snowflake CLI
+-- Run locally: snow sql -c training -f "12-SnowflakeCLI-Lab.sql"
+-- Prerequisite: SetUp/SCHEMA-SETUP-SCOTT.sql; see the companion PDF.
+-- Adjust role/warehouse only if instructed. No credentials belong in this file.
+USE ROLE SYSADMIN;
+USE WAREHOUSE COMPUTE_WH;
+USE DATABASE DEMO_DB;
+USE SCHEMA SCOTT;
+
+SELECT CURRENT_ACCOUNT() AS ACCOUNT_NAME, CURRENT_USER() AS USER_NAME,
+       CURRENT_ROLE() AS ROLE_NAME, CURRENT_WAREHOUSE() AS WAREHOUSE_NAME,
+       CURRENT_DATABASE() AS DATABASE_NAME, CURRENT_SCHEMA() AS SCHEMA_NAME;
+
+SELECT DEPTNO, DNAME, LOC FROM DEPT ORDER BY DEPTNO;
+
+SELECT COUNT(*) AS DEPARTMENT_COUNT FROM DEPT;
