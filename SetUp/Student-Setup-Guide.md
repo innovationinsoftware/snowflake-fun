@@ -1,328 +1,120 @@
-# Snowflake Fundamentals — Student Setup Guide
+# Snowflake Fundamentals - Student Setup Guide
 
-> **Course:** Snowflake Fundamentals 4-Day Class
-> **Copyright © 2026 Innovation In Software Corporation. All rights reserved.**
+## Pre-Class IT Preparation
 
-## Table of Contents
+**Copyright © 2026 Innovation In Software Corporation. All rights reserved.**
 
-1. [Overview](#1-overview)
-2. [Snowflake Account](#2-snowflake-account)
-3. [Snowflake CLI Installation](#3-snowflake-cli-installation)
-4. [Firewall & Network Requirements](#4-firewall--network-requirements)
-5. [Named Connection & First Query](#5-named-connection--first-query)
-6. [Lab Files Setup](#6-lab-files-setup)
-7. [Pre-Installed VM Option](#7-pre-installed-vm-option)
-8. [Verification Checklist](#8-verification-checklist)
-9. [Troubleshooting](#9-troubleshooting)
+### 1. Purpose and responsibilities
 
-## 1. Overview
+This guide is for IT administrators preparing student computers or VMs before class. Install Snowflake CLI with the required administrative privileges, then verify that it runs under the student's normal user account without elevation. Students may not have permission to install software themselves.
 
-Complete this setup before Day 1. You need a Snowflake account, Snowflake CLI,
-a browser, and a local copy of the lab files. Snowflake CLI uses the `snow`
-command. SnowSQL is a legacy client and is not required for these labs.
+Windows is the preferred operating system for class demonstrations. Students may use macOS; see Section 3. For other operating systems, follow the official installation documentation and coordinate with the instructor before class.
 
-**Run commands beginning with `snow` in a local terminal** (PowerShell,
-Command Prompt, or macOS/Linux Terminal). Run SQL through `snow sql` or in
-Snowsight, as directed. Local file transfers with `PUT` and `GET` use the CLI
-in this course; do not paste those commands into a Snowsight SQL editor.
+Students will create their Snowflake trial accounts, configure authentication and a named connection, and test SQL and file transfers during class. No Snowflake account, password, connection profile, schema setup, or Git cloning is required for the pre-class checks below.
 
-## 2. Snowflake Account
+### 2. Windows installation and verification
 
-### 2.1 Account access
+Download **Snowflake CLI** from the [official download page](https://www.snowflake.com/en/developers/downloads/snowflake-cli/). Select the Windows **MSI installer** appropriate for the computer and run it with the necessary permissions. SnowSQL is a different, legacy tool and is not required.
 
-Use the account supplied by the instructor, or create a trial at
-[Snowflake signup](https://signup.snowflake.com/). Select Enterprise edition
-for the class features, and use the cloud/region specified by the instructor.
-Activate the account and confirm you can sign in to Snowsight.
-
-### 2.2 Connection details
-
-In Snowsight, open the account details and copy the account identifier in
-`organization-account` format. Do not use the entire browser URL as the CLI
-account value. Record your username and the class role and warehouse.
-
-The labs use `SYSADMIN` and `COMPUTE_WH` where available. The instructor must
-ensure your user has the class role and that the role has warehouse access.
-Use administrative privileges only for setup steps that require them.
-
-Confirm whether you will use a Snowflake password or the organization's SSO.
-Complete MFA when required by the account. Do not assume that a trial account
-has the same authentication policy as a corporate account.
-
-## 3. Snowflake CLI Installation
-
-Use the [official installation guide](https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation)
-to select the current installer for your operating system and architecture.
-On managed computers, ask IT to install the tool before class.
-
-| Platform | Installation approach |
-|----------|-----------------------|
-| Windows | Download and run the Windows installer linked from the official guide. Open a new terminal after installation. |
-| macOS | Use the macOS package installer or the Homebrew instructions in the official guide. |
-| Linux | Use the appropriate DEB or RPM package and its documented installation steps. |
-
-An alternative for an environment that already has `pipx` and a supported
-Python runtime is:
-
-```text
-pipx install snowflake-cli
-```
-
-Verify installation in a new terminal:
+After installation, sign in as the student and open a **new Command Prompt window**. Run:
 
 ```text
 snow --version
-snow --help
 ```
 
-Expected: a version number and the Snowflake CLI command help. Use the upgrade
-procedure for your installation method; do not assume automatic upgrades.
-For a `pipx` installation, use `pipx upgrade snowflake-cli`.
+On the first run, `Unpacking distribution (tar.bz2)` may appear. Wait for preparation to finish and the version number to display. Do not interrupt it. Verify this works under the student's account, not only under the administrator's account.
 
-## 4. Firewall & Network Requirements
+If `snow` is not recognized, open a new Command Prompt and have IT check the installation and the student's PATH. Resolve application-control or write-permission restrictions before class. Routine CLI use must not require administrator access.
 
-### 4.1 Account-specific endpoints
+### 3. macOS and other operating systems
 
-For corporate networks or VMs, have IT approve the account's service,
-stage-storage, and certificate-validation endpoints. In Snowsight, run:
+For macOS, use the macOS package installer linked from the [official Snowflake CLI installation guide](https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation), selecting the package for the Mac's architecture. Have IT complete any installation approvals. Open a new Terminal window under the student's account and run `snow --version`.
 
-```sql
-SELECT SYSTEM$ALLOWLIST();
-```
+The official guide also documents Homebrew and other supported platforms, including Linux. Windows commands such as `notepad`, `%LOCALAPPDATA%`, and `chcp` do not apply to macOS. The account-free CLI checks `snow --version`, `snow --info`, and `snow helpers detect-encoding` can be run in Terminal.
 
-For private connectivity, ask the administrator for the appropriate private
-endpoint list. Give IT the returned hostnames and ports rather than a generic
-cloud-storage wildcard list. Most service and file-transfer traffic uses
-outbound HTTPS on port 443; certificate-validation endpoints can require
-port 80. Normal client connections do not require an inbound listener.
+<!-- PAGE -->
 
-Installation also requires access to the selected download source. Depending
-on the installation method, this may include Snowflake's package repository,
-GitHub, PyPI, or the organization's software mirror. SSO/MFA can require
-additional identity-provider endpoints.
+### 4. Configuration and optional encoding check
 
-### 4.2 Proxy settings
-
-If IT requires a proxy, use its supplied settings. For example, in PowerShell:
-
-```powershell
-$env:HTTPS_PROXY = "http://proxy.yourcompany.com:8080"
-$env:HTTP_PROXY = "http://proxy.yourcompany.com:8080"
-```
-
-In Command Prompt, use `set HTTPS_PROXY=...` and `set HTTP_PROXY=...`.
-On macOS/Linux, use `export HTTPS_PROXY=...` and `export HTTP_PROXY=...`.
-Ask IT which hosts should bypass the proxy through `NO_PROXY`.
-
-For certificate or OCSP errors, have IT check the endpoints, trust chain,
-proxy, and system clock. Do not disable certificate checks as a setup step.
-A successful web request alone does not verify login or stage transfers:
-complete the connection test below and the Day 3 upload check.
-
-## 5. Named Connection & First Query
-
-### 5.1 Create the `training` connection
-
-Run in your terminal:
-
-```text
-snow connection add -n training
-```
-
-Follow the prompts using your account identifier, username, class role, and
-warehouse. Database and schema can remain unset until the schema setup runs.
-If `training` already exists, test it before changing its configuration.
-
-For password authentication, leave the password out of the saved file and
-supply it through an environment variable when you connect. For configured
-browser SSO, select `externalbrowser` as the authenticator and leave the
-password empty. SSO must be available for your account; it is not assumed
-for individual trial accounts.
-
-### 5.2 Where settings and credentials are stored
-
-The wizard writes connection settings to a local TOML configuration file.
-Find your installation's configuration location with:
+Under the student's account, run:
 
 ```text
 snow --info
 ```
 
-If `~/.snowflake` exists, the default file is `~/.snowflake/config.toml`.
-Otherwise the operating-system defaults are:
+Find **`default_config_file_path`**. Other JSON fields do not need to be interpreted for this preparation. `SNOWFLAKE_HOME: null` by itself is not an error. Configuration is user-specific; do not prepare only the administrator's profile.
 
-| Platform | Default file |
-|----------|--------------|
-| Windows | `%USERPROFILE%\AppData\Local\snowflake\config.toml` |
-| macOS | `~/Library/Application Support/snowflake/config.toml` |
-| Linux | `~/.config/snowflake/config.toml` |
+On Windows, if the displayed path is in `%LOCALAPPDATA%\snowflake`, open the configuration with:
 
-Explicit configuration options and `SNOWFLAKE_HOME` can override the path.
-Here is an illustrative password-authentication profile with the password omitted:
+```text
+notepad "%LOCALAPPDATA%\snowflake\config.toml"
+```
+
+Windows substitutes the current user's folder automatically. If `snow --info` shows another path, use that exact path instead. On macOS, use a plain-text editor and the path reported by `snow --info`.
+
+No connection settings are needed yet. If the configuration file does not exist, create it only if the encoding correction below is needed. Use the reported location, create its parent folder if necessary, and save as `config.toml`, not `config.toml.txt`. Ensure the student can access it. On macOS, restrict the file to owner read/write permissions as described in the [configuration documentation](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/configure-cli).
+
+**Optional troubleshooting: Windows encoding warning**
+
+Check the environment in Command Prompt:
+
+```text
+snow helpers detect-encoding
+```
+
+If an encoding warning appears, add the following section to `config.toml`. Preserve all other settings. If `[cli.encoding]` exists, update it instead of creating a duplicate.
 
 ```toml
-[connections.training]
-account = "myorg-myaccount"
-user = "myuser"
-role = "SYSADMIN"
-warehouse = "COMPUTE_WH"
+[cli.encoding]
+file_io = "utf-8"
+subprocess = "utf-8"
+stdout = "utf-8"
 ```
 
-Replace the example values with your own. A `password = "..."` entry, if
-saved, is **plain text**. Do not share credentials in screenshots or lab files.
-On macOS/Linux, restrict the configuration file to owner read/write permissions.
-
-If `connections.toml` exists in the same directory, CLI reads connections from
-that file instead. Its section is `[training]`, without the `connections.`
-prefix. Check which file is active before editing settings.
-
-For password authentication, PowerShell can prompt without showing the secret
-in the command or terminal history:
-
-```powershell
-$trainingCredential = Get-Credential -UserName 'YOUR_USERNAME' -Message 'Snowflake password'
-$env:SNOWFLAKE_CONNECTIONS_TRAINING_PASSWORD = $trainingCredential.GetNetworkCredential().Password
-```
-
-Replace `YOUR_USERNAME` first. The environment variable contains the password
-for this terminal session; it is not an encrypted credential store. Clear it
-when finished, or close the terminal:
-
-```powershell
-Remove-Item Env:SNOWFLAKE_CONNECTIONS_TRAINING_PASSWORD -ErrorAction SilentlyContinue
-Remove-Variable trainingCredential -ErrorAction SilentlyContinue
-```
-
-For macOS/Linux Bash, an equivalent hidden prompt is:
-
-```bash
-read -r -s -p "Snowflake password: " SNOWFLAKE_CONNECTIONS_TRAINING_PASSWORD
-printf '\n'
-export SNOWFLAKE_CONNECTIONS_TRAINING_PASSWORD
-```
-
-Use `unset SNOWFLAKE_CONNECTIONS_TRAINING_PASSWORD` when finished. These are
-Bash commands; macOS users can start `bash` first. SSO users skip password
-variable setup.
-
-### 5.3 Test the connection
-
-With your password variable set, or SSO configured, run:
+Save the file. If the diagnostic separately reports that the console is not using UTF-8, run the following in that console. It applies only to the current console session:
 
 ```text
-snow connection test -c training
-snow sql -c training -q "SELECT CURRENT_ACCOUNT(), CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE()"
+chcp 65001
 ```
 
-Expected: connection status `OK`, followed by a row showing the intended
-account, user, role, and warehouse. Approve MFA if prompted. Each CLI invocation
-can open a new session, so do not assume session context persists between commands.
-
-### 5.4 File execution and the Day 3 upload check
-
-Run SQL files from the terminal using a quoted path:
+Repeat `snow helpers detect-encoding`. Expected result:
 
 ```text
-snow sql -c training -f "path/to/your-script.sql"
+No encoding issues - your system is properly configured.
 ```
 
-The path is on the computer where CLI runs. On Day 3, follow Demo 3 in
-`13-InternalStagesLab.sql` to upload the supplied `movies.csv`. Verify the
-`PUT` result and `LIST` output; connection status `OK` alone does not prove
-access to stage-storage endpoints.
+This correction was verified on the instructor's Windows computer with Snowflake CLI 3.27.0. Changing `PYTHONUTF8` did not resolve the warning in that test; the `config.toml` settings did. Use this procedure rather than adding alternative fixes.
 
-## 6. Lab Files Setup
+<!-- PAGE -->
 
-### 6.1 Obtain a local copy
+### 5. Network preparation
 
-Download and extract the instructor's lab package to a writable local folder:
+For corporate computers and VMs, arrange access before class to the Snowflake CLI download source, Snowflake documentation, the [Snowflake signup page](https://signup.snowflake.com/), [Snowsight](https://app.snowflake.com/), and the [class Git repository](https://github.com/innovationinsoftware/snowflake-fun). Verify that these pages open from the student's browser on the network or VPN that will be used in class. Permit required download redirects through your organization's approved process.
+
+Snowflake use also requires account-service, stage-storage, and certificate-validation endpoints. Most traffic uses outbound HTTPS on port 443; some certificate-validation endpoints require port 80. Normal client use does not require an inbound listener. Identity-provider endpoints may be needed if the account uses SSO.
+
+**The account-specific endpoint list is not available until the trial account is created in class.** Arrange for IT assistance during the first session if the network uses a strict allowlist. After account creation, the instructor can obtain the account-specific list using `SYSTEM$ALLOWLIST()` and provide it to IT. See the [official allowlist reference](https://docs.snowflake.com/en/sql-reference/functions/system_allowlist).
+
+Opening a webpage verifies only that page's accessibility. It does not prove Snowflake login, SQL execution, or file-transfer connectivity. Those checks will be performed in class after account creation.
+
+If a proxy is required, IT should provide and validate its settings for both the browser and CLI under the student's account. For Windows Command Prompt, these are placeholder examples, not values to use unchanged:
 
 ```text
-Labs/
-  SetUp/       Setup scripts and this guide
-  Day1/        Introduction and data loading
-  Day2/        Table types, cloning, Time Travel, SQL, and scripting
-  Day3/        Snowflake CLI, internal stages, Python, and clustering
-  Day4/        Streams, tasks, external tables, and other topics
-
+set HTTPS_PROXY=http://proxy.yourcompany.com:8080
+set HTTP_PROXY=http://proxy.yourcompany.com:8080
 ```
 
-A Git-backed Snowsight workspace does not automatically put `movies.csv` on
-your laptop or VM. Download the Day3 files onto the machine running CLI.
-Paths can contain spaces; quote file paths as shown in the internal-stages lab.
+These commands affect the current Command Prompt session. On macOS, IT can configure the corresponding `HTTPS_PROXY` and `HTTP_PROXY` environment variables in the student's shell. IT should determine any `NO_PROXY` exclusions. Do not embed proxy passwords in shared instructions. For certificate errors, check the trust chain, proxy, endpoints, and system clock; do not disable certificate validation.
 
-### 6.2 Schema setup
+### 6. Final readiness checklist
 
-Before Day 1, open a SQL file in Snowsight Workspaces and run
-`SetUp/SCHEMA-SETUP-SCOTT.sql` using the instructor-approved role. Verify that
-`DEMO_DB.SCOTT.DEPT` and `DEMO_DB.SCOTT.EMP` contain data. The CLI connection
-itself does not create these objects.
+- [ ] Snowflake CLI is installed on the computer or VM the student will use.
+- [ ] `snow --version` succeeds under the student's normal account without elevation.
+- [ ] Initial unpacking has completed; a new terminal can run the CLI.
+- [ ] `snow --info` runs, and the student's configuration location is known.
+- [ ] Any encoding warning has been addressed using Section 4.
+- [ ] A current browser, a PDF reader/browser preview, and a writable local lab folder are available.
+- [ ] Required pre-class websites and downloads are accessible from the class network/VPN.
+- [ ] Proxy requirements are documented and an IT contact is available for account-specific network issues during class.
 
-### 6.3 Git setup for this class
-
-For this class, run `SetUp/GitSetUp.sql` with the
-required administrative privileges, then follow that file's workspace setup
-instructions. Complete Git setup before opening the schema setup script from the repository. Keep a local copy of files used for CLI transfers.
-
-## 7. Pre-Installed VM Option
-
-IT should provide a supported operating system, a current browser, a writable
-student profile, a terminal, and access to the endpoints in Section 4. Install
-Snowflake CLI using the official platform-specific procedure and verify
-`snow --version` under the student's login. A separate Python installation is
-needed for the Python connector demos, with a runtime supported by the chosen
-connector release.
-
-Use a tested CLI release consistently across class VMs. For automated
-provisioning, follow the current installer or package-manager documentation;
-SnowSQL installer switches and paths do not apply to Snowflake CLI.
-
-Pre-install `snowflake-connector-python` in a separate Python virtual environment
-for `Day3/demo01.py` and `Day3/demo02.py`. Check the current connector requirements
-before selecting Python. Do not bake personal passwords or authentication
-caches into the VM image. Students create their own `training` connection.
-
-## 8. Verification Checklist
-
-- [ ] Snowsight login works, including MFA if required.
-- [ ] Account identifier and username are known.
-- [ ] `snow --version` and `snow --help` work in a new terminal.
-- [ ] `snow connection test -c training` reports `OK`.
-- [ ] The test query reports the expected user, role, and warehouse.
-- [ ] The location of the TOML configuration is understood.
-- [ ] IT has approved the required service and stage-storage endpoints.
-- [ ] Lab files, including Day3's `movies.csv`, exist locally and are readable.
-- [ ] `DEMO_DB.SCOTT.EMP` and `DEMO_DB.SCOTT.DEPT` exist and contain data.
-- [ ] If taking the Python demos, the supported Python/connector environment is ready.
-
-## 9. Troubleshooting
-
-| Symptom | Check or action |
-|---------|-----------------|
-| `snow` is not recognized | Open a new terminal. Verify installation and PATH with IT. |
-| Named connection not found | Run `snow --info`; check the active config file, connection name, and whether `connections.toml` takes precedence. |
-| Authentication fails | Verify account, username, authenticator, and any required MFA. Password variables apply only to the terminal where they were set. |
-| Browser login fails | Confirm SSO is configured and the terminal can launch/access a browser. |
-| Connection timeout | Check account endpoints, VPN, proxy, and network policy with IT. |
-| Certificate error | Have IT inspect trust/certificate-validation connectivity; do not bypass validation. |
-| Warehouse access fails | Confirm the role has USAGE on the selected warehouse. |
-| `PUT` fails in Snowsight | Execute the local SQL file through `snow sql -c training -f ...`. |
-| Local file not found | Use the absolute path on the CLI machine; retain quotes and use forward slashes in the file URI. |
-| Stage not found | Use the lab's database/schema context in the same invocation or fully qualified stage names. |
-| SQL works but upload fails | Check local file permissions and the account-specific stage-storage endpoints. |
-
-## References
-
-- [Snowflake CLI installation](https://docs.snowflake.com/en/developer-guide/snowflake-cli/installation/installation)
-- [CLI configuration](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/configure-cli)
-- [Named connections and authentication](https://docs.snowflake.com/en/developer-guide/snowflake-cli/connecting/configure-connections)
-- [Executing SQL](https://docs.snowflake.com/en/developer-guide/snowflake-cli/sql/execute-sql)
-- [PUT file paths](https://docs.snowflake.com/en/sql-reference/sql/put)
-- [Account network allowlist](https://docs.snowflake.com/en/sql-reference/functions/system_allowlist)
-- [Python connector requirements](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-install)
-
-_End of Student Setup Guide_
-
-View this Markdown guide on GitHub using its formatted preview, or open it in an editor with Markdown preview.
-
-Python demos prompt for your account, username, and password. Complete authentication as required by your account; these demos must be validated with the class account before use.
+Record the operating system, installed CLI version, and IT contact for the instructor. The computer is ready when these local checks pass; creating an account and testing a Snowflake connection are class activities.
