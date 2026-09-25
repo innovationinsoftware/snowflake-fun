@@ -98,13 +98,17 @@ LS @movies_stage;
 -- which makes the uploaded file easier to inspect and query directly.
 -- Use movies.csv from the local Day3 folder. Spaces ARE supported: enclose the
 -- entire file URI in single quotes and use forward slashes, including on Windows.
--- Replace the example below in ALL THREE commands with your actual absolute path.
+-- Supply your actual absolute path ONCE as a Snowflake CLI template variable.
 -- Windows example: 'file://C:/Users/yourname/Snowflake Class/Labs/Day3/movies.csv'
 -- macOS example:   'file:///Users/yourname/Snowflake Class/Labs/Day3/movies.csv'
 -- Linux example:   'file:///home/yourname/Snowflake Class/Labs/Day3/movies.csv'
 -- Do not put %USERPROFILE% or ~ in the SQL URI expecting shell expansion.
 -- Save this demo's USE, PUT, and LS statements to a local file such as 13-put.sql.
--- Run from the terminal: snow sql -c training -f "path/to/13-put.sql"
+-- Windows example:
+--   snow sql -c training -f "path/to/13-put.sql" -D "movies_file=file://C:/Users/yourname/Snowflake Class/Labs/Day3/movies.csv"
+-- macOS example:
+--   snow sql -c training -f "path/to/13-put.sql" -D "movies_file=file:///Users/yourname/Snowflake Class/Labs/Day3/movies.csv"
+-- The CLI replaces <% movies_file %> locally before it sends the PUT commands.
 -- Keeping SQL in a file also avoids shell interpretation of SQL special characters.
 
 USE ROLE sysadmin;
@@ -112,9 +116,9 @@ USE DATABASE movies_db;
 USE SCHEMA movies_schema;
 
 -- Run these three PUT commands from Snowflake CLI:
-PUT 'file://C:/REPLACE_WITH_YOUR_LABS_FOLDER/Day3/movies.csv' @~             AUTO_COMPRESS = FALSE;
-PUT 'file://C:/REPLACE_WITH_YOUR_LABS_FOLDER/Day3/movies.csv' @%movies       AUTO_COMPRESS = FALSE;
-PUT 'file://C:/REPLACE_WITH_YOUR_LABS_FOLDER/Day3/movies.csv' @movies_stage  AUTO_COMPRESS = FALSE;
+PUT '<% movies_file %>' @~             AUTO_COMPRESS = FALSE;
+PUT '<% movies_file %>' @%movies       AUTO_COMPRESS = FALSE;
+PUT '<% movies_file %>' @movies_stage  AUTO_COMPRESS = FALSE;
 
 -- Expected PUT status: UPLOADED, or SKIPPED if the same file is already staged.
 -- Each following listing should include movies.csv.
