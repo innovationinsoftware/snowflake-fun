@@ -37,8 +37,9 @@ and Part 2 contains exercises to complete. Every separate CLI invocation opens
 a new session. Include the USE ROLE / DATABASE / SCHEMA statements when running
 a selection, or use fully qualified names. The connection supplies the warehouse.
 
-Demo 3 must run on the CLI machine, not in the Snowsight SQL editor. Its quoted
-file URI must point to your own movies.csv; replace the example in all three PUTs.
+Demo 3 must run on the CLI machine, not in the Snowsight SQL editor. From the
+local Day3 folder, run `python launch_snow_cli.py` to open an interactive CLI
+session with the movies.csv path already set as `movies_file`.
 */
 
 -- ──────────────────────────────────────────────────────────────────────────────
@@ -98,18 +99,13 @@ LS @movies_stage;
 -- which makes the uploaded file easier to inspect and query directly.
 -- Use movies.csv from the local Day3 folder. Spaces ARE supported: enclose the
 -- entire file URI in single quotes and use forward slashes, including on Windows.
--- Supply your actual absolute path ONCE as a Snowflake CLI template variable.
--- Windows example: 'file://C:/Users/yourname/Snowflake Class/Labs/Day3/movies.csv'
--- macOS example:   'file:///Users/yourname/Snowflake Class/Labs/Day3/movies.csv'
--- Linux example:   'file:///home/yourname/Snowflake Class/Labs/Day3/movies.csv'
--- Do not put %USERPROFILE% or ~ in the SQL URI expecting shell expansion.
--- Save this demo's USE, PUT, and LS statements to a local file such as 13-put.sql.
--- Windows example:
---   snow sql -c training -f "path/to/13-put.sql" -D "movies_file=file://C:/Users/yourname/Snowflake Class/Labs/Day3/movies.csv"
--- macOS example:
---   snow sql -c training -f "path/to/13-put.sql" -D "movies_file=file:///Users/yourname/Snowflake Class/Labs/Day3/movies.csv"
+-- The supplied launch_snow_cli.py finds movies.csv and sets its path ONCE as a
+-- Snowflake CLI template variable. From the local Day3 folder, run:
+--   python launch_snow_cli.py
+-- To use another saved connection: python launch_snow_cli.py -c student_lab
+-- To view the generated command without launching it: python launch_snow_cli.py --print-only
 -- The CLI replaces <% movies_file %> locally before it sends the PUT commands.
--- Keeping SQL in a file also avoids shell interpretation of SQL special characters.
+-- You can then paste the following statements one at a time into the interactive prompt.
 
 USE ROLE sysadmin;
 USE DATABASE movies_db;
