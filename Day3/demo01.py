@@ -1,4 +1,4 @@
-# pip install snowflake-connector-python
+# python -m pip install -r requirements.txt
 
 import snowflake.connector
 from vars import _pwd, _username, _account

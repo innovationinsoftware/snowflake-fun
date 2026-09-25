@@ -1,4 +1,4 @@
-# pip install snowflake-connector-python
+# python -m pip install -r requirements.txt
 
 from pathlib import Path
 import snowflake.connector
