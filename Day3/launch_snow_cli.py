@@ -7,12 +7,12 @@ import subprocess
 import sys
 
 
-def snow_file_uri(path: Path) -> str:
+def snow_file_uri(path):
     """Return the Snowflake PUT URI form for Windows, macOS, or Linux."""
     return "file://" + path.resolve().as_posix()
 
 
-def display_command(command: list[str]) -> str:
+def display_command(command):
     if sys.platform == "win32":
         return subprocess.list2cmdline(command)
     try:
@@ -22,7 +22,7 @@ def display_command(command: list[str]) -> str:
         return " ".join(command)
 
 
-def main() -> int:
+def main():
     parser = argparse.ArgumentParser(
         description="Launch Snowflake CLI with movies_file set for Demo 3."
     )
