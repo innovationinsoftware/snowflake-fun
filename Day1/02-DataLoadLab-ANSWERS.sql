@@ -22,10 +22,10 @@
 */
 
 -- ──────────────────────────────────────────────────────────────────────────────
--- EXERCISE 1 │ Stage Exploration
+-- EXERCISE 1 │ Stage Inventory and Load Decision
 -- ──────────────────────────────────────────────────────────────────────────────
--- Task A: LIST citibike_trips, filter RESULT_SCAN to .json files only.
--- Task B: Explain why mixed file types break a plain COPY.
+-- Task A: Summarize the current citibike_trips stage before loading data.
+-- Task B: Decide whether PATTERN is required for the observed files.
 
 USE DATABASE citibike;
 USE SCHEMA public;
@@ -34,24 +34,25 @@ LIST @citibike_trips;
 
 SET id = (SELECT LAST_QUERY_ID());
 
-SELECT *
-FROM TABLE(RESULT_SCAN($id))
-WHERE "name" LIKE '%.json';
+SELECT
+    COUNT(*) AS total_files,
+    COUNT_IF("name" ILIKE '%.csv.gz') AS csv_gz_files,
+    COUNT_IF("name" NOT ILIKE '%.csv.gz') AS other_files,
+    ROUND(SUM("size") / 1024 / 1024, 2) AS total_size_mb
+FROM TABLE(RESULT_SCAN($id));
 
 -- Task B answer:
--- There are several JSON files in the stage. A plain COPY INTO trips using the
--- csv file format fails because Snowflake attempts to parse every file it finds,
--- and the JSON files do not conform to the CSV structure — causing a parse error
--- or a column count mismatch on those files.
+-- PATTERN is not required when other_files is 0: every staged file is a .csv.gz
+-- file described by the csv file format. PATTERN remains useful when a stage
+-- contains multiple file types, unrelated files, or deliberately selected data.
 
 -- [TEACHING NOTE]
--- This exercise builds observational skill before loading — an important habit.
--- The LIKE '%.json' filter on "name" from RESULT_SCAN is a direct extension of
--- what students saw in Demo 2 with LIKE '%citibike%'.
--- Discussion point: what other strategies exist besides PATTERN to control which
--- files are loaded?
--- (Answer: FILES = ('file1.csv.gz', 'file2.csv.gz') for explicit file lists;
---  or organise the stage into subfolders and use @stage/subfolder/ as the source.)
+-- This exercise makes students inspect the actual source rather than rely on an
+-- assumption about its contents. The result determines whether PATTERN is a
+-- necessary safeguard or merely a redundant filter for this particular stage.
+-- Discussion point: what other strategies can limit the files that COPY loads?
+-- (Answer: FILES = ('file1.csv.gz', 'file2.csv.gz') for an explicit list, or
+--  a subfolder path such as @stage/subfolder/.)
 
 
 -- ──────────────────────────────────────────────────────────────────────────────

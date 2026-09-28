@@ -196,7 +196,7 @@ DISCUSSION — NO SQL EXECUTION REQUIRED
 4. Which AI-generated result would you want a person to review before acting?
 
 There is no student exercise or answer-submission section for this demonstration.
-No answer script is needed for this demonstration.
+The legacy 20-CortexLab-ANSWERS.sql file is not required for this session.
 
 Function reference:
 https://docs.snowflake.com/en/sql-reference/functions/ai_sentiment

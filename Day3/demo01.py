@@ -3,6 +3,7 @@
 import snowflake.connector
 from vars import _pwd, _username, _account
 
+print("\nReading scott.dept table:\n")
 
 with snowflake.connector.connect(user=_username, password=_pwd, account=_account, warehouse="compute_wh") as con:
     with con.cursor() as cur:

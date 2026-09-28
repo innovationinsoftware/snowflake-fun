@@ -102,17 +102,32 @@ CREATE OR REPLACE FILE FORMAT csv
 
 
 -- ──────────────────────────────────────────────────────────────────────────────
--- DEMO 4 │ COPY INTO — Intentional Failure (Mixed File Types)
+-- DEMO 4 │ COPY INTO — Intentional Failure (Empty Strings)
 -- ──────────────────────────────────────────────────────────────────────────────
 -- [INSTRUCTOR NOTE]
--- This COPY deliberately fails because the stage contains both .csv.gz and
--- .json files. Without a PATTERN filter, Snowflake tries to parse every file
--- using the CSV format — and the JSON files cause an error.
--- The lesson: always inspect stage contents with LIST before loading.
+-- This COPY intentionally uses the original csv file format, which does not
+-- yet include NULL_IF = (''). Some source records represent missing values in
+-- numeric columns as empty strings.
+--
+-- Snowflake cannot convert an empty string to an INTEGER or FLOAT. Because the
+-- default ON_ERROR behavior is ABORT_STATEMENT, the load stops at the first
+-- conversion error and no rows are loaded.
+--
+-- Demo 5 shows how ON_ERROR = CONTINUE lets us inspect errors after a load.
+-- Demo 7 then fixes the root cause by adding NULL_IF = ('') to the file format
+-- and repeats the load successfully.
 
 COPY INTO trips
 FROM @citibike_trips
 FILE_FORMAT = csv;
+
+
+-- Verify whether the current stage contains files other than .csv.gz.
+LIST @citibike_trips
+->> SELECT COUNT(*) AS total_files,
+           COUNT_IF("name" ILIKE '%.csv.gz') AS csv_files,
+           COUNT_IF("name" NOT ILIKE '%.csv.gz') AS other_files
+    FROM $1;
 
 
 -- ──────────────────────────────────────────────────────────────────────────────
@@ -132,7 +147,7 @@ COPY INTO trips
 FROM @citibike_trips
 FILE_FORMAT = csv
 ON_ERROR    = CONTINUE
-PATTERN     = '.*[.]csv.gz';
+PATTERN     = '.*[.]csv.gz'; -- this is useful for mixed files in the stage
 
 SET id = (SELECT LAST_QUERY_ID());
 
@@ -170,6 +185,31 @@ ON_ERROR    = CONTINUE
 PATTERN     = '.*[.]csv.gz';
 
 
+-- Force load one file again: s3://snowflake-workshop-lab/japan/citibike-trips/trips_2013_0_0_0.csv.gz
+
+list @citibike_trips/trips_2013_0_0_0.csv.gz;
+
+COPY INTO trips
+FROM @citibike_trips/trips_2013_0_0_0.csv.gz
+FILE_FORMAT = csv
+ON_ERROR    = CONTINUE
+FORCE = TRUE;
+
+-- Alternative strategy for loading just one file using PATTERN attribute:
+-- PATTERN selects one matching file from the stage.
+-- FORCE = TRUE bypasses load history for this demonstration.
+-- Do not use FORCE in a normal incremental load because it can create duplicates.
+
+COPY INTO trips
+FROM @citibike_trips
+FILE_FORMAT = csv
+ON_ERROR    = CONTINUE
+FORCE       = TRUE
+PATTERN     = '.*trips_2013_0_0_0[.]csv[.]gz';
+
+
+
+
 -- ──────────────────────────────────────────────────────────────────────────────
 -- DEMO 7 │ NULL_IF — Fixing Empty-Field Data Quality Issues
 -- ──────────────────────────────────────────────────────────────────────────────
@@ -178,7 +218,11 @@ PATTERN     = '.*[.]csv.gz';
 -- NULL_IF = ('') additionally converts the literal empty string '' to NULL.
 -- Without NULL_IF, '' is stored as an empty string rather than NULL, causing
 -- type-cast failures for INTEGER and FLOAT columns.
--- TRUNCATE TABLE also resets the file load history, allowing a clean reload.
+--
+-- After correcting the file format, validate the files before loading them.
+-- VALIDATION_MODE = RETURN_ERRORS returns the detected errors but does not load
+-- any rows. An empty trips_load_errors table is the signal to proceed with the
+-- actual COPY INTO statement.
 
 -- 7a. Add NULL_IF to the file format
 CREATE OR REPLACE FILE FORMAT csv
@@ -190,21 +234,32 @@ CREATE OR REPLACE FILE FORMAT csv
     SKIP_HEADER                    = 1
     NULL_IF                        = ('');
 
--- 7b. Reset the table and its load history, then reload
+-- 7b. Reset the table and its load history before the final load.
 TRUNCATE TABLE trips;
 
+-- 7c. Validate the corrected format without loading rows.
+COPY INTO trips
+FROM @citibike_trips
+FILE_FORMAT = csv
+VALIDATION_MODE = RETURN_ERRORS;
+
+SET id = (SELECT LAST_QUERY_ID());
+
+-- Recreate the error table from the validation result.
+CREATE OR REPLACE TABLE trips_load_errors AS
+SELECT *
+FROM TABLE(RESULT_SCAN($id));
+
+-- An empty result means the files passed preflight validation.
+SELECT *
+FROM trips_load_errors;
+
+-- 7d. Load the validated data.
 COPY INTO trips
 FROM @citibike_trips
 FILE_FORMAT = csv
 ON_ERROR    = CONTINUE
 PATTERN     = '.*[.]csv.gz';
-
-SET id = (SELECT LAST_QUERY_ID());
-
--- 7c. Confirm zero errors after the NULL_IF fix
-SELECT *
-FROM TABLE(VALIDATE(trips, JOB_ID => $id));
-
 
 -- ──────────────────────────────────────────────────────────────────────────────
 -- DEMO 8 │ JSON Data — VARIANT Column, Stage, Load, View, and Cross-DB Join
@@ -311,21 +366,23 @@ ORDER BY 2 DESC;
 */
 
 -- ──────────────────────────────────────────────────────────────────────────────
--- EXERCISE 1 │ Stage Exploration
+-- EXERCISE 1 │ Stage Inventory and Load Decision
 -- ──────────────────────────────────────────────────────────────────────────────
--- Task: The citibike_trips stage was created in the demo and points at a mix
---       of CSV and JSON files.  Without loading any data:
---         A) LIST the stage and use RESULT_SCAN to show only files whose
---            "name" ends in '.json' (use a LIKE filter).
---         B) How many JSON files are mixed in with the CSV files?
---            Why is this a problem for a plain COPY INTO trips?
+-- Task: Inspect the citibike_trips stage without loading any data.
+--         A) Run LIST and use RESULT_SCAN to return one row containing:
+--              - total number of files
+--              - number of .csv.gz files
+--              - number of files with another extension
+--              - total size in MB
+--         B) Based on the result, answer in a comment: is PATTERN required for
+--            the current stage contents? Explain your decision.
 
 
 -- Task A – YOUR CODE HERE
 
 
 -- Task B – Answer in a comment:
--- There are ___ JSON files. A plain COPY fails because ...
+-- PATTERN is / is not required because ...
 
 
 -- ──────────────────────────────────────────────────────────────────────────────

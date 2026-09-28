@@ -23,8 +23,9 @@ with snowflake.connector.connect(user=_username, password=_pwd, account=_account
     with con.cursor() as cur:
         try:
             for sql in commands:
+                print(f"Executing: {sql}...")
                 cur.execute(sql)
-                print("Executed: ", sql)
+
 
         except Exception as ex:
             print(ex)
