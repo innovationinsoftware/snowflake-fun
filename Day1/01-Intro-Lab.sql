@@ -113,32 +113,37 @@ SELECT
     "account_locator_url"
 FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
--- 6d. Add Snowsight URL and UNPIVOT to a readable key / value list
+-- 6d. Add account_id, account_region, snowsight_url, user_name and UNPIVOT to a readable key / value list
 SHOW ACCOUNTS;
 
-SELECT *
+SELECT * 
 FROM (
-    SELECT
-        "organization_name",
-        "account_name",
-        "account_locator",
-        "account_url",
-        "account_locator_url",
-        'https://app.snowflake.com/'
-            || LOWER("organization_name") || '/'
-            || LOWER("account_name") AS "snowsight_url"
-    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
+	SELECT 
+		"organization_name", 
+		"account_name", 
+		"organization_name" || '-' || "account_name" as "account_id",
+		"account_locator", 
+		"account_url", 
+		"account_locator_url", 
+		current_user() as "user_name", 
+		'https://app.snowflake.com/' || LOWER("organization_name") || '/' || LOWER("account_name") AS "snowsight_url",
+		REGEXP_REPLACE("snowflake_region", '^AWS_([A-Z]+)_([A-Z]+)_([0-9]+)$', '\\1-\\2-\\3') AS "account_region"
+	FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
 )
 UNPIVOT (
-    value FOR key IN (
-        "organization_name",
-        "account_name",
-        "account_locator",
-        "account_url",
-        "account_locator_url",
-        "snowsight_url"
-    )
+  value FOR key IN (
+    "organization_name",
+    "account_name",
+	"account_id",
+    "account_locator",
+	"account_region",
+    "account_url",
+    "account_locator_url",
+    "snowsight_url",
+    "user_name"
+  )
 );
+
 
 
 -- DEMO 7 │ The Flow Pipe Operator (->>)
@@ -151,28 +156,32 @@ UNPIVOT (
 
 SHOW ACCOUNTS
 ->>
-SELECT *
+SELECT * 
 FROM (
-    SELECT
-        "organization_name",
-        "account_name",
-        "account_locator",
-        "account_url",
-        "account_locator_url",
-        'https://app.snowflake.com/'
-            || LOWER("organization_name") || '/'
-            || LOWER("account_name") AS "snowsight_url"
-    FROM $1
+	SELECT 
+		"organization_name", 
+		"account_name", 
+		"organization_name" || '-' || "account_name" as "account_id",
+		"account_locator", 
+		"account_url", 
+		"account_locator_url", 
+		current_user() as "user_name", 
+		'https://app.snowflake.com/' || LOWER("organization_name") || '/' || LOWER("account_name") AS "snowsight_url",
+		REGEXP_REPLACE("snowflake_region", '^AWS_([A-Z]+)_([A-Z]+)_([0-9]+)$', '\\1-\\2-\\3') AS "account_region"
+	FROM $1
 )
 UNPIVOT (
-    value FOR key IN (
-        "organization_name",
-        "account_name",
-        "account_locator",
-        "account_url",
-        "account_locator_url",
-        "snowsight_url"
-    )
+  value FOR key IN (
+    "organization_name",
+    "account_name",
+	"account_id",
+    "account_locator",
+	"account_region",
+    "account_url",
+    "account_locator_url",
+    "snowsight_url",
+    "user_name"
+  )
 );
 
 
